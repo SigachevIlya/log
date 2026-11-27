@@ -1,0 +1,81 @@
+name: Check and optionally publish LOG.
+
+# No push trigger: adding this file never publishes a site.
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the checked build to GitHub Pages
+        type: boolean
+        required: true
+        default: false
+      base_path:
+        description: 'Optional path override, for example /LogApp/ or / for a custom domain'
+        type: string
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: log-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Select base path
+        env:
+          REQUESTED_BASE: ${{ inputs.base_path }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { appendFileSync } from 'node:fs';
+          const [owner, repo] = process.env.REPOSITORY.split('/');
+          const base = process.env.REQUESTED_BASE || (repo.toLowerCase() === `${owner.toLowerCase()}.github.io` ? '/' : `/${repo}/`);
+          if (!/^\/(?:[a-zA-Z0-9_.-]+\/)*$/.test(base) || base.split('/').some(part => part === '.' || part === '..')) throw new Error('Invalid base path');
+          appendFileSync(process.env.GITHUB_ENV, `LOG_BASE_PATH=${base}\n`);
+          NODE
+      - run: npm ci
+      - run: npm test
+      - run: npm run typecheck
+      - name: Build portable production fixture
+        run: npm run build
+        env:
+          LOG_BASE_PATH: './'
+      - run: npx playwright install --with-deps chromium
+      - name: Test production interface
+        run: npm run test:e2e
+        env:
+          LOG_PREVIEW: '1'
+      - name: Test offline, updates and subdirectory builds
+        run: npm run test:pwa
+      - name: Build artifact at the selected Pages path
+        run: npm run build
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist
+
+  deploy:
+    if: ${{ inputs.publish }}
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@v5
+      - name: Deploy checked artifact
+        id: deployment
+        uses: actions/deploy-pages@v4

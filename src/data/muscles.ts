@@ -1,0 +1,9 @@
+import type { Exercise } from '../domain/models';
+export const muscles = ['Грудь', 'Широчайшие', 'Верхняя и средняя часть спины', 'Разгибатели позвоночника', 'Верхняя трапеция', 'Передняя дельта', 'Средняя дельта', 'Задняя дельта', 'Бицепс', 'Трицепс', 'Квадрицепс', 'Задняя поверхность бедра', 'Ягодичные', 'Икры', 'Предплечья', 'Пресс', 'Другое'];
+const primary: Record<string, string> = {
+  'pull-up': 'Широчайшие', 'row-lats': 'Широчайшие', 'single-pulldown': 'Широчайшие', 'smith-rear-delt': 'Задняя дельта', shrug: 'Верхняя трапеция', 'barbell-curl': 'Бицепс', hammer: 'Бицепс', 'incline-press': 'Грудь', 'split-squat': 'Квадрицепс', squat: 'Квадрицепс', rdl: 'Задняя поверхность бедра', 'leg-curl': 'Задняя поверхность бедра', 'lateral-raise': 'Средняя дельта', 'calf-raise': 'Икры', 'bench-press': 'Грудь', 'pec-fly': 'Грудь', 'row-upper': 'Верхняя и средняя часть спины', 'smith-pullover': 'Широчайшие', pushdown: 'Трицепс',
+};
+const secondary: Record<string, string[]> = { 'pull-up': ['Бицепс'], 'split-squat': ['Ягодичные'], squat: ['Ягодичные'], rdl: ['Ягодичные', 'Разгибатели позвоночника'], 'incline-press': ['Передняя дельта', 'Трицепс'], 'bench-press': ['Трицепс', 'Передняя дельта'], hammer: ['Предплечья'] };
+export function withExerciseMetadata(exercise: Exercise): Exercise {
+  return { ...exercise, primaryMuscle: exercise.primaryMuscle ?? primary[exercise.id] ?? 'Другое', secondaryMuscles: exercise.secondaryMuscles ?? secondary[exercise.id] ?? [], repetitionRule: exercise.repetitionRule ?? (exercise.unilateral ? 'Повторения на одну сторону; подход включает обе стороны' : 'Повторения за подход'), bodyWeight: exercise.bodyWeight ?? ['additional', 'bodyweight'].includes(exercise.weightMode), customWeightNote: exercise.customWeightNote ?? '', archived: exercise.archived ?? false, revision: exercise.revision ?? 0 };
+}

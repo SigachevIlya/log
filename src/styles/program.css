@@ -1,0 +1,85 @@
+.program-card { padding: 16px 0; border-bottom: 1px solid var(--line); }
+.program-card h2 { font-size: 1.125rem; overflow-wrap: anywhere; }
+.program-card p { font-size: .875rem; margin-top: 8px; overflow-wrap: anywhere; }
+.program-sequence { padding: 12px 0; color: var(--muted); overflow-wrap: anywhere; }
+.program-list { margin-top: 12px; }
+.template-editor input:not([type='checkbox']), .template-editor select, .exercise-form input:not([type='checkbox']), .exercise-form select, .app-shell main > input, .app-shell main > select { width: 100%; }
+.template-editor h1 { font-size: 1.75rem; }
+.workout-intro > div { min-width: 0; }
+.workout-intro h2 { overflow-wrap: anywhere; }
+.template-tab > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.template-editor textarea, .exercise-form textarea { min-height: 64px; }
+.template-editor > .primary-button { margin-top: 16px; }
+.template-slot { padding: 12px 0; border-bottom: 1px solid var(--line); }
+.template-slot summary { min-height: 44px; cursor: pointer; font-size: .9375rem; padding: 10px 0; overflow-wrap: anywhere; }
+.slot-numbers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 12px 0; }
+.slot-numbers label { font-size: .75rem; color: var(--muted); }
+.slot-numbers input { display: block; margin-top: 4px; }
+.variant-row { display: flex; align-items: center; gap: 3px; border-bottom: 1px solid var(--line); padding: 5px 0; }
+.variant-row > span { min-width: 0; flex: 1; font-size: .8125rem; overflow-wrap: anywhere; }
+.variant-row .small-button { min-width: 44px; padding: 8px 5px; flex-shrink: 0; }
+.secondary-muscles { padding: 12px 0; }
+.secondary-muscles summary { min-height: 44px; cursor: pointer; font-size: .875rem; padding: 10px 0; }
+.exercise-form .primary-button { margin-top: 16px; }
+.week-controls { display: flex; align-items: center; justify-content: space-between; gap: 3px; margin-top: 3px; }
+.week-controls .text-button { font-size: .75rem; text-align: center; }
+.week-controls .small-button { font-size: 1.5rem; min-width: 44px; padding: 0; }
+.week-grid { margin-top: 4px; }
+.week-day { min-height: 78px; }
+.recorded-day .day-number { text-decoration: underline; text-underline-offset: 4px; }
+.week-day .day-mark { font-size: .8125rem; }
+.weekday-options { display: grid; grid-template-columns: 1fr 1fr; }
+.template-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.workout-letter { max-width: 25%; overflow-wrap: anywhere; }
+.workout-letter.long-code { font-size: 1.25rem; }
+.template-select { width: 100%; margin-top: 12px; }
+@media (max-width: 350px) { .weekday-options { grid-template-columns: 1fr; } }
+.program-heading { padding: 14px 0 8px; }
+.program-heading h1 { font-size: 1.6rem; overflow-wrap: anywhere; }
+.program-topline { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--line); }
+.program-topline .program-sequence { flex: 1; font-size: .875rem; }
+.compact-card { display: flex; align-items: flex-start; gap: 4px; padding: 7px 0; }
+.compact-card-main { display: flex; align-items: flex-start; gap: 12px; flex: 1; min-width: 0; min-height: 48px; padding: 8px 0; text-align: left; }
+.template-code { font-size: 1.25rem; font-weight: 600; min-width: 24px; max-width: 64px; overflow-wrap: anywhere; }
+.compact-card-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+.compact-card-text strong { font-size: .9375rem; font-weight: 500; overflow-wrap: anywhere; }
+.compact-card-text .small { font-size: .75rem; overflow-wrap: anywhere; }
+.next-label { font-size: .6875rem; color: var(--text); }
+.row-menu { position: relative; flex-shrink: 0; }
+.row-menu-items { position: absolute; right: 0; top: 44px; width: 200px; z-index: 20; padding: 4px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.row-menu-items button { display: block; text-align: left; width: 100%; min-height: 44px; padding: 8px 12px; font-size: .875rem; }
+.archive-list { border-top: 1px solid var(--line); margin-top: 12px; }
+.archive-list > summary, .template-info > summary { min-height: 44px; cursor: pointer; padding: 12px 0; font-size: .875rem; }
+.editor-heading { padding: 16px 0; }
+.editor-heading h1 { font-size: 1.6rem; }
+.template-editor .page-heading { padding: 16px 0 10px; }
+.template-editor h1 { font-size: 1.6rem; }
+.template-info { border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+.template-totals { margin: 12px 0 2px; }
+.template-slot { padding: 4px 0; }
+.editor-action-space { height: 80px; }
+.editor-action-bar { position: fixed; z-index: 12; bottom: calc(58px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); width: 100%; max-width: 680px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 8px 16px; border-top: 1px solid var(--line); background: var(--bg); }
+.keyboard-open .editor-action-bar { position: static; transform: none; width: auto; padding: 10px 0; margin-bottom: 8px; }
+.keyboard-open .editor-action-space { display: none; }
+.alternation-settings { padding: 8px 0; }
+.cycle-editor input, .cycle-editor select { width: 100%; }
+.cycle-editor > .primary-button { margin-top: 20px; }
+.week-controls .week-range { flex: 1; min-width: 0; font-size: .6875rem; line-height: 1.4; }
+.week-controls .legend-button { flex-shrink: 0; font-size: .6875rem; }
+.week-controls .icon-button { flex-shrink: 0; }
+.day-mark { display: flex; align-items: center; justify-content: center; min-height: 17px; }
+.week-day { position: relative; }
+.day-record-count { position: absolute; right: 2px; top: 2px; border: 1px solid var(--muted); border-radius: 3px; padding: 0 2px; font-size: .625rem; line-height: 1.3; }
+.calendar-legend { list-style: none; margin: 0 0 16px; padding: 0; }
+.calendar-legend li { display: flex; align-items: flex-start; gap: 12px; padding: 8px 0; font-size: .875rem; }
+.calendar-legend svg { margin-top: 3px; }
+.calendar-dialog-section { border-bottom: 1px solid var(--line); padding: 12px 0; }
+.calendar-dialog-section:last-child { border-bottom: 0; }
+.calendar-dialog-section h3 { margin: 0 0 8px; font-size: .8125rem; font-weight: 600; }
+.calendar-dialog-section p { font-size: .875rem; }
+.calendar-dialog-section input { width: 100%; }
+.calendar-record-link { display: flex; flex-direction: column; width: 100%; min-height: 44px; text-align: left; padding: 10px 0; gap: 3px; font-size: .875rem; }
+.calendar-record-link span { font-size: .8125rem; color: var(--muted); }
+html { scroll-padding-bottom: calc(var(--fixed-bottom-space, 74px) + env(safe-area-inset-bottom)); }
+.template-editor input, .template-editor textarea, .template-editor select { scroll-margin-bottom: 150px; }
+.calendar-record-link strong { overflow-wrap: anywhere; }

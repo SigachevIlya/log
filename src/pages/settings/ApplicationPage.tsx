@@ -1,0 +1,11 @@
+import { applyUpdate, dismissUpdate, retryPwa, repairPwa, usePwa } from '../../pwa/client';
+import { APP_VERSION } from '../../lib/version';
+import { go } from '../../routing/router';
+export function ApplicationPage() {
+  const state = usePwa();
+  return <><div className="page-heading editor-heading"><button className="text-button" onClick={() => go('/settings')}>К настройкам</button><h1>Приложение.</h1></div><section className="settings-section"><h2>LOG. {APP_VERSION}</h2><div className="application-status" role="status"><p>{state.message}</p></div>{state.reloadRequired ? <button className="primary-button" onClick={() => location.reload()}>Перезагрузить вкладку</button> : state.update ? <div className="button-row"><button className="small-button filled" onClick={() => void applyUpdate()}>Обновить</button><button className="small-button outlined" onClick={dismissUpdate}>Позже</button></div> : <button className="text-button" onClick={() => void retryPwa()}>Проверить готовность и обновления</button>}{state.phase === 'error' && <button className="small-button outlined" onClick={() => void repairPwa()}>Восстановить автономный режим</button>}<p className="small muted">Обновление применяется только после сохранения данных и завершения или отмены активной тренировки во всех открытых вкладках.</p></section><button className="program-link" onClick={() => go('/settings/guide/install')}>Как установить LOG. на iPhone</button><button className="program-link" onClick={() => go('/settings/guide/updates')}>Как работают обновления</button></>;
+}
+export function UpdateBanner() {
+  const state = usePwa(); if ((!state.update || state.dismissed) && !state.reloadRequired) return null;
+  return <aside className="update-banner" role="status"><p>{state.reloadRequired ? 'LOG. обновлён. Перезагрузите эту вкладку для продолжения.' : 'Доступно обновление LOG.'}</p><div className="button-row">{state.reloadRequired ? <button className="text-button" onClick={() => location.reload()}>Перезагрузить</button> : <><button className="text-button" onClick={() => void applyUpdate()}>Обновить</button><button className="text-button" onClick={dismissUpdate}>Позже</button></>}</div>{!state.reloadRequired && state.message !== 'Готово к автономной работе' && <p className="small muted">{state.message}</p>}</aside>;
+}
