@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { reportError } from '../lib/reportError';
+import { prepareSectionModules } from '../lib/sectionModules';
 declare const __LOG_BUILD_ID__: string;
 export const BUILD_ID = typeof __LOG_BUILD_ID__ === 'string' ? __LOG_BUILD_ID__ : 'development';
 interface PwaState { phase: 'preparing' | 'ready' | 'unavailable' | 'error'; message: string; update: boolean; dismissed: boolean; locked: boolean; reloadRequired: boolean }
@@ -7,7 +8,7 @@ let state: PwaState = { phase: 'preparing', message: 'Подготавливае
 const listeners = new Set<() => void>();
 function set(patch: Partial<PwaState>) { state = { ...state, ...patch }; listeners.forEach(listener => listener()); }
 export const usePwa = () => useSyncExternalStore(listener => { listeners.add(listener); return () => { listeners.delete(listener); }; }, () => state);
-let registration: ServiceWorkerRegistration | undefined, started = false, applying = false, repairing = false;
+let registration: ServiceWorkerRegistration | undefined, updateCandidate: ServiceWorker | undefined, started = false, applying = false, repairing = false;
 let safety: () => Promise<{ safe: boolean; reason?: string }> = async () => ({ safe: false, reason: 'Дождитесь загрузки данных.' });
 export function setUpdateSafety(check: typeof safety) { safety = check; }
 function send(worker: ServiceWorker, message: object, timeout = 5000): Promise<any> {
@@ -18,7 +19,18 @@ async function status() {
   if (registration?.waiting) set({ update: true });
   const worker = navigator.serviceWorker.controller;
   if (!worker) return false;
-  try { const value = await send(worker, { type: 'LOG_STATUS' }), ready = value.ready && value.buildId === BUILD_ID; set(ready ? { phase: 'ready', message: 'Готово к автономной работе' } : { phase: 'error', message: 'Автономный кэш неполон или повреждён. Подключитесь к сети и восстановите автономный режим. Если уже опубликована другая сборка, потребуется обновление LOG.' }); worker.postMessage({ type: 'LOG_CLEANUP' }); return !!ready; }
+  try {
+    const value = await send(worker, { type: 'LOG_STATUS' });
+    let ready = value.ready && value.buildId === BUILD_ID;
+    if (ready) {
+      await prepareSectionModules();
+      // Loading can overlap an update or cache damage. Recheck the controlling build.
+      const checked = await send(worker, { type: 'LOG_STATUS' });
+      ready = navigator.serviceWorker.controller === worker && checked.ready && checked.buildId === BUILD_ID;
+    }
+    set(ready ? { phase: 'ready', message: 'Готово к автономной работе' } : { phase: 'error', message: 'Автономный кэш неполон или повреждён. Подключитесь к сети и восстановите автономный режим. Если уже опубликована другая сборка, потребуется обновление LOG.' });
+    worker.postMessage({ type: 'LOG_CLEANUP' }); return !!ready;
+  }
   catch (cause) { reportError('Проверка автономной готовности', cause); set({ phase: 'error', message: 'Не удалось проверить автономный режим. Подключитесь к сети и повторите загрузку.' }); }
 }
 export async function startPwa() {
@@ -40,7 +52,7 @@ export async function startPwa() {
     const scope = new URL(import.meta.env.BASE_URL, document.baseURI);
     const existing = await navigator.serviceWorker.getRegistration(scope.href);
     registration = existing?.scope === scope.href ? existing : await navigator.serviceWorker.register(new URL('sw.js', scope), { scope: scope.pathname, updateViaCache: 'none' });
-    const watch = () => { const worker = registration?.installing; if (!worker) return; worker.addEventListener('statechange', () => { if (worker.state === 'installed' && navigator.serviceWorker.controller) set({ update: true, dismissed: false }); if (worker.state === 'activated') void status(); if (worker.state === 'redundant' && !navigator.serviceWorker.controller) set({ phase: 'error', message: 'Не удалось подготовить автономный кэш. Потребуется сеть и повторная загрузка.' }); }); };
+    const watch = () => { const worker = registration?.installing; if (!worker) return; worker.addEventListener('statechange', () => { if (worker.state === 'installed' && navigator.serviceWorker.controller) { updateCandidate = worker; set({ update: true, dismissed: false }); } if (worker.state === 'activated') void status(); if (worker.state === 'redundant' && !navigator.serviceWorker.controller) set({ phase: 'error', message: 'Не удалось подготовить автономный кэш. Потребуется сеть и повторная загрузка.' }); }); };
     registration.addEventListener('updatefound', watch); watch(); await status();
     if (existing && navigator.onLine) void registration.update().catch(cause => reportError('Проверка обновления LOG.', cause));
     const refresh = () => { if (!document.hidden) { void registration?.update().catch(cause => reportError('Проверка обновления LOG.', cause)); void status(); } };
@@ -49,9 +61,10 @@ export async function startPwa() {
 }
 export function dismissUpdate() { set({ dismissed: true }); }
 export async function applyUpdate() {
-  if (!registration?.waiting) { await retryPwa(); return; }
+  const worker = registration?.waiting ?? updateCandidate;
+  if (!worker || worker.state !== 'installed') { await retryPwa(); return; }
   const local = await safety(); if (!local.safe) { set({ message: local.reason ?? 'Сначала сохраните изменения.' }); return; }
-  try { applying = true; const result = await send(registration.waiting, { type: 'LOG_APPLY_UPDATE' }); if (!result.ok) { applying = false; set({ locked: false, message: result.reason }); } }
+  try { applying = true; const result = await send(worker, { type: 'LOG_APPLY_UPDATE' }); if (!result.ok) { applying = false; set({ locked: false, message: result.reason }); } }
   catch (cause) { applying = false; set({ locked: false, message: 'Обновление не применено. Закройте занятые вкладки и повторите попытку.' }); reportError('Применение обновления', cause); }
 }
 export async function repairPwa() {

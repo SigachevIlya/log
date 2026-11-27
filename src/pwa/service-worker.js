@@ -7,6 +7,16 @@ const PREFIX = `log-shell:${new URL(SCOPE).pathname}::`;
 const CACHE = `${PREFIX}${BUILD}`;
 const urls = new Map(FILES.map(file => [new URL(file.url, SCOPE).href, file]));
 const inScope = client => client.url.startsWith(SCOPE);
+async function fetchResource(request) {
+  // Safari 16 supports AbortController, but not AbortSignal.timeout.
+  const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 9000);
+  try {
+    const response = await fetch(request, { signal: controller.signal });
+    await response.clone().arrayBuffer(); // Bound the body too, retaining Response.url/MIME.
+    return response;
+  }
+  finally { clearTimeout(timer); }
+}
 async function verified(response, file) {
   if (!response?.ok) return false;
   const digest = await crypto.subtle.digest('SHA-256', await response.clone().arrayBuffer());
@@ -25,7 +35,7 @@ function repairCache() {
     // Fetch and verify every replacement before touching the existing usable cache.
     // The same build's manifest fences a newer deployment; no reload or DB access.
     for (const file of damaged) {
-      const url = new URL(file.url, SCOPE).href, response = await fetch(new Request(url, { cache: 'reload', credentials: 'same-origin' }));
+      const url = new URL(file.url, SCOPE).href, response = await fetchResource(new Request(url, { cache: 'reload', credentials: 'same-origin' }));
       if (!(await verified(response, file))) throw new Error('Нужный ресурс недоступен или относится к другой сборке: ' + file.url);
       responses.push([url, response]);
     }
@@ -52,7 +62,7 @@ self.addEventListener('install', event => {
     const cache = await caches.open(CACHE);
     try {
       for (const file of FILES) {
-        const url = new URL(file.url, SCOPE).href, response = await fetch(new Request(url, { cache: 'reload', credentials: 'same-origin' }));
+        const url = new URL(file.url, SCOPE).href, response = await fetchResource(new Request(url, { cache: 'reload', credentials: 'same-origin' }));
         if (!response.ok) throw new Error(`Missing offline file: ${file.url}`);
         if (!(await verified(response, file))) throw new Error(`Mixed application versions: ${file.url}`);
         await cache.put(url, response);
@@ -71,12 +81,12 @@ self.addEventListener('fetch', event => {
     const file = urls.get(target), current = await cache.match(target, { ignoreSearch: true });
     if (current && (!file || await verified(current, file))) return current;
     if (file) {
-      const response = await fetch(new Request(target, { cache: 'reload', credentials: 'same-origin' }));
+      const response = await fetchResource(new Request(target, { cache: 'reload', credentials: 'same-origin' }));
       if (!(await verified(response, file))) throw new Error('Ресурс другой сборки или повреждён: ' + file.url);
       await cache.put(target, response.clone()); return response;
     }
     for (const key of (await caches.keys()).filter(key => key.startsWith(PREFIX) && key !== CACHE)) { const older = await (await caches.open(key)).match(request, { ignoreSearch: true }); if (older) return older; }
-    return fetch(request);
+    return fetchResource(request);
   })());
 });
 self.addEventListener('message', event => {

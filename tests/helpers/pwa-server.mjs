@@ -18,17 +18,26 @@ function nextVersion(source) {
 const { version: appVersion } = JSON.parse(await readFile(new URL('../../package.json', import.meta.url), 'utf8'));
 const normal = await load(resolve('dist')), configured = await load(resolve('artifacts/' + appVersion + '/subpath-build'));
 const versions = [normal, nextVersion(normal)], configuredVersions = [configured, nextVersion(configured)];
+const failedModule = nextVersion(normal);
+const failedName = [...failedModule.keys()].find(name => name.includes('ProgressPage') && name.endsWith('.js'));
+failedModule.set(failedName, Buffer.concat([Buffer.from('throw new Error("Simulated module evaluation failure");\n'), failedModule.get(failedName)]));
+const failedWorker = failedModule.get('sw.js').toString('utf8');
+const failedFiles = JSON.parse(failedWorker.match(/const FILES = (.*);/)[1]).map(file => ({ ...file, sha256: createHash('sha256').update(failedModule.get(file.url)).digest('hex') }));
+failedModule.set('sw.js', Buffer.from(failedWorker.replace(/const FILES = .*;/, `const FILES = ${JSON.stringify(failedFiles)};`)));
+const previous = await load(resolve('artifacts/0.5.3/previous-source/dist'));
 let version = 0, broken = false;
 http.createServer((request, response) => {
   const url = new URL(request.url, 'http://127.0.0.1:4175'); response.setHeader('Cache-Control', 'no-store');
   if (url.pathname === '/__test__/reset') { version = 0; broken = false; response.end('reset'); return; }
   if (url.pathname === '/__test__/version/2') { version = 1; response.end('updated'); return; }
+  if (url.pathname === '/__test__/version/previous') { version = 2; response.end('previous'); return; }
+  if (url.pathname === '/__test__/module-failure') { version = 3; response.end('module failure'); return; }
   if (url.pathname === '/__test__/broken') { broken = true; response.end('broken'); return; }
   if (url.pathname === '/__test__/ready') { response.end('ready'); return; }
   let path = decodeURIComponent(url.pathname), maps = versions;
   if (path.startsWith('/configured/')) { path = path.slice('/configured'.length); maps = configuredVersions; }
   else if (path.startsWith('/log/')) path = path.slice('/log'.length);
-  const name = path === '/' ? 'index.html' : path.slice(1), content = maps[version].get(name);
+  const name = path === '/' ? 'index.html' : path.slice(1), content = (version === 2 ? previous : version === 3 ? failedModule : maps[version]).get(name);
   if (!content || name.includes('..')) { response.statusCode = 404; response.end('not found'); return; }
   response.setHeader('Content-Type', name.endsWith('.js') ? 'application/javascript' : name.endsWith('.css') ? 'text/css' : name.endsWith('.html') ? 'text/html;charset=utf-8' : name.endsWith('.webmanifest') ? 'application/manifest+json' : name.endsWith('.svg') ? 'image/svg+xml' : name.endsWith('.png') ? 'image/png' : 'application/octet-stream');
   response.end(broken && name.endsWith('.css') ? '/* wrong version */' : content);

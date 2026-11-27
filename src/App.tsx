@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { liveQuery } from 'dexie';
 import { flushSync } from 'react-dom';
 import { Moon, Sun } from 'lucide-react';
@@ -9,7 +9,9 @@ import { Navigation, type Section } from './components/Navigation';
 import { WorkoutPage } from './pages/WorkoutPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { buildAnalytics } from './domain/analytics';
-const ProgressPage = lazy(() => import('./pages/progress/ProgressPage'));
+import { loadProgress, loadDataPage, loadGuide } from './lib/sectionModules';
+import { sectionComponent } from './components/SectionBoundary';
+const ProgressPage = sectionComponent(loadProgress, 'Открываем прогресс…');
 import { ActiveWorkoutPage } from './pages/ActiveWorkoutPage';
 import { HistoryPage, SessionSummary } from './pages/HistoryPage';
 import { Dialog } from './components/Dialog';
@@ -21,8 +23,8 @@ import { createId } from './domain/id';
 import { configureDraftEpoch, draftStorageFailed } from './lib/draftStorage';
 import { dirtyEditors, pendingWrites } from './lib/activity';
 import { startPwa, setUpdateSafety, usePwa } from './pwa/client';
-const DataPage = lazy(() => import('./pages/settings/DataPage').then(module => ({ default: module.DataPage })));
-const GuidePage = lazy(() => import('./pages/settings/GuidePage').then(module => ({ default: module.GuidePage })));
+const DataPage = sectionComponent(loadDataPage, 'Открываем данные…');
+const GuidePage = sectionComponent(loadGuide, 'Открываем руководство…');
 import { ApplicationPage, UpdateBanner } from './pages/settings/ApplicationPage';
 import { BackupReminder } from './components/BackupReminder';
 import { go, objectPath, routeId, useRoute } from './routing/router';
@@ -91,6 +93,10 @@ export function App() {
     else if (view === 'summary' && !data.history.some(row => row.id === routeId(route, '/workout/summary'))) go('/workout', { replace: true, guard: false, from: route });
     else if (!/^\/(workout(?:\/active|\/summary\/[^/]+)?|history(?:\/[^/]+(?:\/edit)?)?|program(?:\/cycle|\/template\/[^/]+|\/library(?:\/[^/]+)?)?|settings(?:\/data|\/application|\/guide(?:\/[^/]+)?)?|progress(?:\/.*)?)$/.test(route)) go(route.startsWith('/program') ? '/program' : route.startsWith('/history') ? '/history' : route.startsWith('/progress') ? '/progress' : route.startsWith('/settings') ? '/settings' : '/workout', { replace: true, guard: false });
   }, [route, data, view, busy]);
+  async function reloadSection() {
+    if (!mayLeave() || !(await flushForFiles())) return;
+    location.reload();
+  }
   async function flushForFiles() {
     if (stale || draftStorageFailed()) return false;
     return !editor.writer || await editor.writer.flush();
@@ -149,9 +155,9 @@ export function App() {
       {!data ? !error && <p className="loading" role="status">Открываем дневник…</p> : <>
         {section === 'workout' && (view === 'program' ? <ProgramPage data={data} onBack={() => go('/workout')} onPreview={id => { setSelected(id); go('/workout'); }} /> : view === 'summary' && data.history.find(row => row.id === routeId(route, '/workout/summary')) ? <SessionSummary session={data.history.find(row => row.id === routeId(route, '/workout/summary'))!} onHome={() => void navigate('workout')} /> : view === 'active' && data.active && editor.session && editor.writer ? <ActiveWorkoutPage key={editor.session.id} session={editor.session} writer={editor.writer} saving={editor.saving} dirty={editor.dirty} error={editor.error} actionError={error} library={data.exercises} history={data.history} busy={busy} analytics={analytics} recommendationsEnabled={data.settings.recommendationsEnabled !== false} onBack={() => void navigate('workout')} onFinish={finish} onCancel={cancel} /> : <WorkoutPage data={data} now={now} selected={selected} programView={false} busy={busy} onSelect={id => { if (mayLeave()) setSelected(id); }} onProgram={() => void showProgram()} onStart={() => { if (mayLeave()) void begin(); }} onSaveDescription={async (id, description, expected) => { await db.transaction('rw', db.exercises, async () => { const exercise = await db.exercises.get(id); if (!exercise || (exercise.revision ?? 0) !== expected) throw new Error('Упражнение изменено в другой вкладке. Откройте пояснение заново.'); await db.exercises.update(id, { description, revision: (exercise.revision ?? 0) + 1, comparisonKey: createId() }); }); }} />)}
         {section === 'workout' && view === 'home' && <BackupReminder data={data} now={now} />}
-        {section === 'progress' && <Suspense fallback={<p className="loading" role="status">Открываем прогресс…</p>}><ProgressPage data={data} analytics={analytics} now={now} /></Suspense>}
+        {section === 'progress' && <ProgressPage reloadSection={() => void reloadSection()} data={data} analytics={analytics} now={now} />}
         {section === 'history' && <HistoryPage history={data.history} program={data.program} active={!!data.active} onWorkout={() => void navigate('workout')} />}
-        {section === 'settings' && <Suspense fallback={<p className="loading" role="status">Открываем раздел…</p>}>{(route === '/settings/data' ? <DataPage data={data} flush={flushForFiles} /> : route.startsWith('/settings/guide') ? <GuidePage /> : route === '/settings/application' ? <ApplicationPage /> : <SettingsPage data={data} onProgram={() => void showProgram()} theme={data.settings.theme} onTheme={changeTheme} busy={busy} />)}</Suspense>}
+        {section === 'settings' && (route === '/settings/data' ? <DataPage reloadSection={() => void reloadSection()} data={data} flush={flushForFiles} /> : route.startsWith('/settings/guide') ? <GuidePage reloadSection={() => void reloadSection()} /> : route === '/settings/application' ? <ApplicationPage /> : <SettingsPage data={data} onProgram={() => void showProgram()} theme={data.settings.theme} onTheme={changeTheme} busy={busy} />)}
       </>}
     </fieldset></main><Navigation section={section} onChange={navigate} />
     {startChoice && <Dialog title={`Тренировка ${templateCode(selected)} вне очереди`} onClose={() => !busy && setStartChoice(false)}><p>Сейчас по программе — тренировка {data && templateCode(data.program.nextTemplateId)}. По умолчанию внеплановая тренировка не сдвигает цикл.</p><label className="check-label"><input type="checkbox" checked={advanceChoice} onChange={event => setAdvanceChoice(event.target.checked)} />После завершения продолжить цикл с {templateCode(nextTemplate(selected, data?.program.sequence))}</label>{error && <p className="error-text" role="alert">{error}</p>}<button className="primary-button" disabled={busy} onClick={() => void begin(advanceChoice)}>Начать вне очереди</button></Dialog>}

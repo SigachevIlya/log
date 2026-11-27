@@ -28,6 +28,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v6
         with:
           node-version: '24'
@@ -51,7 +53,7 @@ jobs:
         run: npm run build
         env:
           LOG_BASE_PATH: './'
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright install --with-deps chromium webkit
       - name: Test production interface
         run: npm run test:e2e
         env:
@@ -60,6 +62,8 @@ jobs:
           LOG_BASE_PATH: './'
       - name: Test offline, updates and subdirectory builds
         run: npm run test:pwa
+      - name: Test offline and updates with WebKit
+        run: npm run test:pwa -- --browser=webkit
       - name: Build artifact at the selected Pages path
         run: npm run build
       - uses: actions/upload-pages-artifact@v4
