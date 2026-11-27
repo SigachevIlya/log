@@ -56,6 +56,8 @@ jobs:
         run: npm run test:e2e
         env:
           LOG_PREVIEW: '1'
+          # Match the portable fixture; the job-level base is for the final artifact.
+          LOG_BASE_PATH: './'
       - name: Test offline, updates and subdirectory builds
         run: npm run test:pwa
       - name: Build artifact at the selected Pages path
